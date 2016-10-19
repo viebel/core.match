@@ -1799,7 +1799,7 @@ col with the first column and compile the result"
   (syntax-tag [_] ::map)
   #?(:clj clojure.lang.Symbol :cljs Symbol)
   (syntax-tag [_] ::symbol)
-  #?(:cljs number
+  #?(:cljs js/Number
   (syntax-tag [_] ::default))
 #?(:cljs string
   (syntax-tag [_] ::default))
