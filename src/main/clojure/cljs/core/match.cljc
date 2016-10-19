@@ -8,10 +8,11 @@
             (:import [java.io Writer]
                      [clojure.core.match.protocols IExistentialPattern IPseudoPattern]))
   :cljs ((:require [clojure.set :as set]
-                   [cljs.core :refer [Symbol IMap IVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
+                   [cljs.core :refer [Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
                    [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
 
 
+(def backtrack (js/Error.))
 
 ;; =============================================================================
 ;; # Introduction
@@ -237,7 +238,7 @@
 ;; something from the middle of the vector to the front - thus prepend
 ;; and drop-nth. swap will swap the 0th element with the nth element.
 
-(extend-type #?(:clj clojure.lang.IPersistentVector :cljs IVector); TODO Yehonathan - is that correct for :cljs ?
+(extend-type #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector); TODO Yehonathan - is that correct for :cljs ?
   IVecMod
   (prepend [this x]
     (into [x] this))
@@ -334,7 +335,7 @@
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup)[this k not-found]
     (case k
       :ps ps
@@ -894,7 +895,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :sym sym
@@ -947,7 +948,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :l l
@@ -1048,7 +1049,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup)[this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup)[this k not-found]
     (case k
       :s s
@@ -1238,7 +1239,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :m m
@@ -1381,7 +1382,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :v v
@@ -1482,7 +1483,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :ps ps
@@ -1541,7 +1542,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :p p
@@ -1632,7 +1633,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :p p
@@ -1709,7 +1710,7 @@ col with the first column and compile the result"
 
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
-    (.valAt this k nil))
+    (#?(:clj .valAt :cljs -lookup) this k nil))
   (#?(:clj valAt :cljs -lookup) [this k not-found]
     (case k
       :p p
@@ -1790,7 +1791,7 @@ col with the first column and compile the result"
   (fn [pattern] (syntax-tag pattern)))
 
 (extend-protocol ISyntaxTag
-  #?(:clj clojure.lang.IPersistentVector :cljs IVector)
+  #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector)
   (syntax-tag [_] ::vector)
   #?(:clj clojure.lang.ISeq :cljs ISeq)
   (syntax-tag [_] ::seq)
@@ -2147,14 +2148,14 @@ col with the first column and compile the result"
 ;; ============================================================================
 ;; # Match macros
 
-(defmacro match 
+(defmacro match
   "Pattern match a row of occurrences. Take a vector of occurrences, vars.
   Clause question-answer syntax is like `cond`. Questions must be
   wrapped in a vector, with same arity as vars. Last question can be :else,
   which expands to a row of wildcards. Optionally may take a single
   var not wrapped in a vector, questions then need not be wrapped in a
   vector.
-  
+
   Example:
   (let [x 1
         y 2]
