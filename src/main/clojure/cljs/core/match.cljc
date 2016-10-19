@@ -8,8 +8,8 @@
             (:import [java.io Writer]
                      [clojure.core.match.protocols IExistentialPattern IPseudoPattern]))
   :cljs ((:require [clojure.set :as set]
-                   [cljs.core :refer [Symbol IMap IVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
-                   [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
+                   [cljs.core :refer [Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
+                   [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern PersistentVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
 
 
 (def backtrack (js/Error.))
@@ -239,7 +239,7 @@
 ;; something from the middle of the vector to the front - thus prepend
 ;; and drop-nth. swap will swap the 0th element with the nth element.
 
-(extend-type #?(:clj clojure.lang.IPersistentVector :cljs IVector); TODO Yehonathan - is that correct for :cljs ?
+(extend-type #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector); TODO Yehonathan - is that correct for :cljs ?
   IVecMod
   (prepend [this x]
     (into [x] this))
@@ -1404,7 +1404,7 @@ col with the first column and compile the result"
   IContainsRestPattern
   (contains-rest-pattern? [_] rest?)
 
-  IVectorPattern
+  PersistentVectorPattern
   (split [this n]
     (let [lv (subvec v 0 n)
           rv (subvec v n)
@@ -1790,11 +1790,11 @@ col with the first column and compile the result"
   (fn [pattern] (syntax-tag pattern)))
 
 (extend-protocol ISyntaxTag
-  #?(:clj clojure.lang.IPersistentVector :cljs IVector)
+  #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector)
   (syntax-tag [_] ::vector)
   #?(:clj clojure.lang.ISeq :cljs ISeq)
   (syntax-tag [_] ::seq)
-  #?(:clj clojure.lang.IPersistentMap :cljs IMap)
+  #?(:clj clojure.lang.IPersistentMap :cljs PersistentHashMap)
   (syntax-tag [_] ::map)
   #?(:clj clojure.lang.Symbol :cljs Symbol)
   (syntax-tag [_] ::symbol)
