@@ -1806,9 +1806,9 @@ col with the first column and compile the result"
 
 #?(:cljs
 (extend-type number
-  (syntax-tag [_] ::default))
+  (syntax-tag [_] :default))
 (extend-type string
-  (syntax-tag [_] ::default)))
+  (syntax-tag [_] :default)))
 
 
 
