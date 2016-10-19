@@ -54,9 +54,6 @@
        :doc "Enable syntax check of match macros"} 
   *syntax-check* (atom true))
 
-(def ^{:dynamic true}
-  *clojurescript* false)
-
 (def ^{:dynamic true} *line*)
 (def ^{:dynamic true} *locals* nil)
 (def ^{:dynamic true} *warned*)
@@ -84,13 +81,15 @@
                :cljs (js/Error. "Could not find match.")))
 
 (defn backtrack-expr []
-  (if *clojurescript*
+  #?(:cljs
     `(throw cljs.core.match/backtrack)
+     :clj
     `(throw clojure.core.match/backtrack)))
 
 (defn backtrack-sym []
-  (if *clojurescript*
+  #?(:cljs
     'cljs.core.match/backtrack
+     :clj
     'clojure.core.match/backtrack))
 
 (def ^{:dynamic true} *backtrack-stack* ())
@@ -431,9 +430,10 @@
   (n-to-clj [this]
     (if *recur-present*
       `(throw
-         ~(if *clojurescript*
-            `(js/Error. (str "No match found."))
-            `(Exception. (str "No match found."))))
+         #?(:cljs
+            (js/Error. (str "No match found."))
+            :clj
+            (Exception. (str "No match found."))))
       (backtrack-expr))))
 
 (defn fail-node []
@@ -463,7 +463,7 @@
     [test (n-to-clj action)]))
 
 (defn catch-error [& body]
-  (let [err-sym (if *clojurescript* 'js/Error 'Exception)]
+  (let [err-sym #?(:cljs 'js/Error :clj 'Exception)]
     `(catch ~err-sym e#
        (if (identical? e# ~(backtrack-sym))
          (do
@@ -963,18 +963,18 @@ col with the first column and compile the result"
      (and (symbol? l) (not (-> l meta :local)))
      `(= ~ocr '~l)
 
-     (and *clojurescript*
-         (or (number? l) (string? l)
+     #?@(:cljs
+     ((or (number? l) (string? l)
              (true? l) (false? l)
-             (nil? l)))
-     `(identical? ~ocr ~l) 
-      
-     (and *clojurescript* (keyword? l))
-     `(cljs.core/keyword-identical? ~ocr ~l)
-     
+             (nil? l))
+     `(identical? ~ocr ~l)
+
+      (keyword? l)
+     `(cljs.core/keyword-identical? ~ocr ~l)))
+
       :else `(= ~ocr ~l))))
 
-(defn literal-pattern [l] 
+(defn literal-pattern [l]
   (LiteralPattern. l (meta l)))
 
 (defn literal-pattern? [x]
@@ -1189,8 +1189,9 @@ col with the first column and compile the result"
                     (let [a (with-meta (gensym) {:tag 'java.util.Map})]
                       (cons
                         (guard-pattern (wildcard-pattern)
-                          (set [(if *clojurescript*
+                          (set [#?(:cljs
                                   `(fn [~a] (= (set (keys ~a)) #{~@only}))
+                                   :clj
                                   `(fn [~a] (= (.keySet ~a) #{~@only})))]))
                         ps))
                     (cons (wildcard-pattern) ps))
@@ -1797,6 +1798,11 @@ col with the first column and compile the result"
   (syntax-tag [_] ::map)
   #?(:clj clojure.lang.Symbol :cljs Symbol)
   (syntax-tag [_] ::symbol)
+  #?(:cljs number
+  (syntax-tag [_] ::default))
+#?(:cljs string
+  (syntax-tag [_] ::default))
+
 
   #?(:clj Object :cljs object)
   (syntax-tag [_] :default)
@@ -2097,10 +2103,11 @@ col with the first column and compile the result"
                  (if default
                    (conj (vec cs)
                      [last-match
-                       (if *clojurescript*
+                       #?(:cljs
                          `(throw
                             (js/Error.
                               (str "No matching clause: " ~@(interpose " " vs))))
+                          :clj
                          `(throw
                             (IllegalArgumentException.
                               (str "No matching clause: " ~@(interpose " " vs)))))])
@@ -2202,7 +2209,7 @@ col with the first column and compile the result"
          (repeat `(aset ~a)) (range (count vs)) vs)
      ~a))
 
-(defmacro match 
+(defmacro match
   [vars & clauses]
   (let [[vars clauses]
         (if (vector? vars)
@@ -2211,8 +2218,7 @@ col with the first column and compile the result"
             (mapcat (fn [[c a]]
                       [(if (not= c :else) (vector c) c) a])
               (partition 2 clauses))])]
-   (binding [*clojurescript* true
-             *line* (-> &form meta :line)
+   (binding [*line* (-> &form meta :line)
              *locals* (dissoc (:locals &env) '_)
              *warned* (atom false)]
      `~(clj-form vars clauses))))
@@ -2226,16 +2232,14 @@ col with the first column and compile the result"
             (mapcat (fn [[c a]]
                       [(if (not= c :else) (vector c) c) a])
               (partition 2 clauses))])]
-   (binding [*clojurescript* true
-             *line* (-> &form meta :line)
+   (binding [*line* (-> &form meta :line)
              *locals* (dissoc (:locals &env) '_)
              *warned* (atom false)
              *no-backtrack* true]
      `~(clj-form vars clauses))))
 
 (defmacro matchv [type vars & clauses]
-  (binding [*clojurescript* true
-            *vector-type* type
+  (binding [*vector-type* type
             *line* (-> &form meta :line)
             *locals* (dissoc (:locals &env) '_)
             *warned* (atom false)]
@@ -2243,8 +2247,7 @@ col with the first column and compile the result"
 
 
 (defmacro matchv* [type vars & clauses]
-  (binding [*clojurescript* true
-            *vector-type* type
+  (binding [*vector-type* type
             *line* (-> &form meta :line)
             *locals* (dissoc (:locals &env) '_)
             *warned* (atom false)
@@ -2260,8 +2263,7 @@ col with the first column and compile the result"
             (mapcat (fn [[c a]]
                       [(if (not= c :else) (vector c) c) a])
               (partition 2 clauses))])]
-   (binding [*clojurescript* true
-             *line* (-> &form meta :line)
+   (binding [*line* (-> &form meta :line)
              *locals* (dissoc (:locals &env) '_)
              *warned* (atom false)]
      `~(clj-form vars clauses))))
