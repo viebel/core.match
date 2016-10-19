@@ -1799,16 +1799,18 @@ col with the first column and compile the result"
   (syntax-tag [_] ::map)
   #?(:clj clojure.lang.Symbol :cljs Symbol)
   (syntax-tag [_] ::symbol)
-  #?(:cljs js/Number
-  (syntax-tag [_] ::default))
-#?(:cljs string
-  (syntax-tag [_] ::default))
-
-
   #?(:clj Object :cljs object)
   (syntax-tag [_] :default)
   nil
   (syntax-tag [_] :default))
+
+#?(:cljs
+(extend-type number
+  (syntax-tag [_] ::default))
+(extend-type string
+  (syntax-tag [_] ::default)))
+
+
 
 ;; ============================================================================
 ;; # emit-pattern Methods
