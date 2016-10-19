@@ -9,7 +9,7 @@
                      [clojure.core.match.protocols IExistentialPattern IPseudoPattern]))
   :cljs ((:require [clojure.set :as set]
                    [cljs.core :refer [Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
-                   [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern PersistentVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
+                   [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
 
 
 (def backtrack (js/Error.))
@@ -1404,7 +1404,7 @@ col with the first column and compile the result"
   IContainsRestPattern
   (contains-rest-pattern? [_] rest?)
 
-  PersistentVectorPattern
+  IVectorPattern
   (split [this n]
     (let [lv (subvec v 0 n)
           rv (subvec v n)
@@ -1794,7 +1794,7 @@ col with the first column and compile the result"
   (syntax-tag [_] ::vector)
   #?(:clj clojure.lang.ISeq :cljs ISeq)
   (syntax-tag [_] ::seq)
-  #?(:clj clojure.lang.IPersistentMap :cljs PersistentHashMap)
+  #?(:clj clojure.lang.IPersistentMap :cljs IMap)
   (syntax-tag [_] ::map)
   #?(:clj clojure.lang.Symbol :cljs Symbol)
   (syntax-tag [_] ::symbol)
