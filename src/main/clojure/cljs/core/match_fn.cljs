@@ -1,18 +1,9 @@
-(ns cljs.core.match
+(ns cljs.core.match-fn
   (:refer-clojure :exclude [compile])
-  #?@(:clj ((:use [clojure.core.match.protocols])
-            (:require [clojure.set :as set]
-                      [clojure.tools.analyzer :as ana]
-                      [clojure.tools.analyzer.jvm :as ana-jvm]
-                      [clojure.tools.analyzer.passes.jvm.annotate-loops :as loops])
-            (:import [java.io Writer]
-                     [clojure.core.match.protocols IExistentialPattern IPseudoPattern]))
-  :cljs ((:require [clojure.set :as set]
-                   [cljs.core :refer [Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
-                   [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
+  (:require [clojure.set :as set]
+            [cljs.core :refer [array? keyword-identical? IMultiFn Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
+            [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))
 
-
-(def backtrack (js/Error.))
 
 ;; =============================================================================
 ;; # Introduction
@@ -78,70 +69,52 @@
   *no-backtrack* false)
 
 (def ^{:doc "Pre-allocated exception used for backtracing"}
-  backtrack #?(:clj (Exception. "Could not find match.")
-               :cljs (js/Error. "Could not find match.")))
+  backtrack (js/Error. "Could not find match."))
 
 (defn backtrack-expr []
-  #?(:cljs
-    `(throw cljs.core.match/backtrack)
-     :clj
-    `(throw clojure.core.match/backtrack)))
+  `(throw cljs.core.match/backtrack))
 
 (defn backtrack-sym []
-  #?(:cljs
-    'cljs.core.match/backtrack
-     :clj
-    'clojure.core.match/backtrack))
+    'cljs.core.match/backtrack)
+    
 
 (def ^{:dynamic true} *backtrack-stack* ())
 (def ^{:dynamic true} *root* true)
 
 (defn warn [msg]
   (when (not @*warned*)
-    (binding #?(:clj [*out* *err*] :cljs [*print-fn* *print-err-fn*])
+    (binding [*print-fn* *print-err-fn*]
       (println "WARNING:"
         (str *ns* ", line " *line* ":") 
         msg))
     (reset! *warned* true)))
 
-#?(:clj
-(defn analyze [form env]
+#_(defn analyze [form env]
   (binding [ana/macroexpand-1 ana-jvm/macroexpand-1
             ana/create-var    ana-jvm/create-var
             ana/parse         ana-jvm/parse
             ana/var?          var?]
-    (ana/analyze form env))))
+    (ana/analyze form env)))
 
-#?(:clj
-(defn get-loop-locals []
+#_(defn get-loop-locals []
   (let [LOOP_LOCALS clojure.lang.Compiler/LOOP_LOCALS]
     (mapcat
       (fn [b]
         (let [name (.sym ^clojure.lang.Compiler$LocalBinding b)]
           [name name]))
       (when (bound? LOOP_LOCALS)
-        @LOOP_LOCALS)))))
+        @LOOP_LOCALS))))
 
 ;; =============================================================================
 ;; # Map Pattern Interop
 
-(extend-type #?(:clj clojure.lang.ILookup :cljs ILookup)
+(extend-type ILookup
   IMatchLookup
   (val-at [this k not-found]
-    (#?(:clj .valAt :cljs -lookup) this k not-found)))
-
-#?(:clj
-(defn val-at*
-  ([m k] (val-at m k ::not-found))
-  ([m k not-found] (val-at m k not-found))))
+    (-lookup this k not-found)))
 
 (defn val-at-expr [& args]
-  #?(:cljs
-    `(get ~@args)
-    ;;If not ClojureScript, defer to val-at*
-    `(if (instance? clojure.lang.ILookup ~(first args))
-       (get ~@args)
-       (val-at* ~@args))))
+    `(get ~@args))
 
 ;; =============================================================================
 ;; # Vector Pattern Interop
@@ -169,39 +142,34 @@
   [_] true)
 
 (defmethod tag :default
-  [t] (throw (#?(:clj Exception. :cljs js/Error.)) (str "No tag specified for vector specialization " t)))
+  [t] (throw (js/Error. (str "No tag specified for vector specialization " t))))
 
 (defmethod tag ::vector
-  [_] clojure.lang.IPersistentVector)
+  [_] PersistentVector)
 
 (defn with-tag [t ocr]
   (let [the-tag (tag t)
-        the-tag #?(:clj
-                    (if (and (class? the-tag)
+        the-tag the-tag] 
+                    #_(if (and (class? the-tag)
                              (.isArray ^Class the-tag))
                       (.getName ^Class the-tag)
                       the-tag)
-                  :cljs the-tag)];TODO Yehonathan - what should be instead of `class?` for cljs?
+                  ;TODO Yehonathan - what should be instead of `class?` for cljs?
     (vary-meta ocr assoc :tag the-tag)))
 
 (defmethod test-inline ::vector
   [t ocr]
   (let [the-tag (tag t)
-        c #?(:clj
-              (cond 
-            (class? the-tag) the-tag
-            (string? the-tag) (Class/forName the-tag)
-            (symbol? the-tag) (Class/forName (str the-tag))
-            :else (throw (Error. (str "Unsupported tag type" the-tag))))
-            :cljs
-              (cond; TODO Yehonathan - what should be instead of `class?` and forName for cljs?
-                (string? the-tag) the-tag
-                (symbol? the-tag) (str (the-tag))
-                :else (throw (js/Error. (str "Unsupported tag type" the-tag)))))]
+        c 
+        ;(class? the-tag) the-tag ; TODO Yehonathan - what should be instead of `class?` and forName for cljs?
+        (cond
+          (string? the-tag) the-tag
+          (symbol? the-tag) (str (the-tag))
+          :else (throw (js/Error. (str "Unsupported tag type" the-tag))))]
     (cond
       (= t ::vector) `(vector? ~ocr)
-      #?@(:cljs ((.isArray ^Class c) `(cljs.core/array? ~ocr)))
-      :else `(instance? ~c ~ocr))))
+      (.isArray ^Class c) `(array? ~ocr))
+    :else `(instance? ~c ~ocr)))
 
 (defmethod test-with-size-inline ::vector
   [t ocr size]
@@ -238,7 +206,7 @@
 ;; something from the middle of the vector to the front - thus prepend
 ;; and drop-nth. swap will swap the 0th element with the nth element.
 
-(extend-type #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector); TODO Yehonathan - is that correct for :cljs ?
+(extend-type PersistentVector
   IVecMod
   (prepend [this x]
     (into [x] this))
@@ -298,61 +266,60 @@
   (swap [_ n]
     (PatternRow. (swap ps n) action bindings))
 
-  #?(:clj clojure.lang.Associative :cljs IAssociative)
-  (#?(:clj assoc :cljs -assoc) [this k v]
+  IAssociative
+  (-assoc [this k v]
     (PatternRow. (assoc ps k v) action bindings))
 
-  #?(:clj clojure.lang.Indexed :cljs IIndexed)
-  (#?(:clj nth :cljs -nth) [_ i]
+  IIndexed
+  (-nth [_ i]
     (nth ps i))
-  (#?(:clj nth :cljs -nth) [_ i x]
+  (-nth [_ i x]
     (nth ps i x))
 
-  #?(:clj clojure.lang.ISeq :cljs ISeq)
-  (#?(:clj first :cljs -first) [_] (first ps))
+  ISeq
+  (-first [_] (first ps))
 
-  #?(:cljs INext)
-  (#?(:clj next :cljs -next) [_]
+  INext
+  (-next [_]
     (if-let [nps (next ps)]
       (PatternRow. nps action bindings)
       (PatternRow. [] action bindings)))
 
   ;TODO Yehonathan - no `more` in cljs?
-  #?(:clj
-  (more [_]
+  #_(more [_]
     (if (empty? ps)
       nil
       (let [nps (rest ps)]
-        (PatternRow. nps action bindings)))))
+        (PatternRow. nps action bindings))))
 
-  #?(:cljs ISeqable)
-  (#?(:clj seq :cljs -seq) [this]
+  ISeqable
+  (-seq [this]
     (seq ps))
 
-  #?(:cljs ICounted)
-  (#?(:clj count :cljs -count)[_]
+  ICounted
+  (-count [_]
     (count ps))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup)[this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :ps ps
       :action action
       :bindings bindings
       not-found))
 
-  #?(:clj clojure.lang.IFn :cljs IFn)
-  (#?(:clj invoke :cljs -invoke)[_ n]
+  IFn
+  (-invoke [_ n]
     (nth ps n))
 
-  #?(:clj clojure.lang.IPersistentCollection :cljs ICollection)
-  (#?(:clj cons :cljs -conj) [_ x]
+  ICollection
+  (-conj [_ x]
     (PatternRow. (conj ps x) action bindings))
 
-  #?(:cljs IEquiv)
-  (#?(:clj equiv :cljs -equiv) [this other]
+  IEquiv
+  (-equiv [this other]
     (.equals this other)))
 
 (defn pattern-row
@@ -431,10 +398,7 @@
   (n-to-clj [this]
     (if *recur-present*
       `(throw
-         #?(:cljs
-            (js/Error. (str "No match found."))
-            :clj
-            (Exception. (str "No match found."))))
+            (js/Error. (str "No match found.")))
       (backtrack-expr))))
 
 (defn fail-node []
@@ -464,7 +428,7 @@
     [test (n-to-clj action)]))
 
 (defn catch-error [& body]
-  (let [err-sym #?(:cljs 'js/Error :clj 'Exception)]
+  (let [err-sym 'js/Error]
     `(catch ~err-sym e#
        (if (identical? e# ~(backtrack-sym))
          (do
@@ -886,17 +850,18 @@ col with the first column and compile the result"
            (= sym (:sym other))
            (not (:named other)))))
 
-  #?(:clj clojure.lang.IObj :cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IWithMeta
+  (-with-meta [_ new-meta]
     (WildcardPattern. sym named new-meta))
-  #?(:cljs IMeta)
-  (#?(:clj meta :cljs -meta)[_]
+
+  IMeta
+  (-meta [_]
     _meta)
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :sym sym
       :named named
@@ -919,8 +884,8 @@ col with the first column and compile the result"
 (defn named-wildcard-pattern? [x]
   (and (instance? WildcardPattern x) (:named x)))
 
-#?(:clj (defmethod print-method WildcardPattern [p ^Writer writer]
-  (.write writer (str "<WildcardPattern: " (:sym p) ">"))))
+#_(defmethod print-method WildcardPattern [p ^Writer writer]
+  (.write writer (str "<WildcardPattern: " (:sym p) ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; ## Literal Pattern
@@ -939,17 +904,17 @@ col with the first column and compile the result"
   (equals [_ other]
     (and (instance? LiteralPattern other) (= l (:l other))))
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
+  IMeta
+  (-meta [_] _meta)
 
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IWithMeta
+  (-with-meta [_ new-meta]
     (LiteralPattern. l new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :l l
       ::tag ::literal
@@ -964,14 +929,13 @@ col with the first column and compile the result"
      (and (symbol? l) (not (-> l meta :local)))
      `(= ~ocr '~l)
 
-     #?@(:cljs
-     ((or (number? l) (string? l)
+     (or (number? l) (string? l)
              (true? l) (false? l)
              (nil? l))
      `(identical? ~ocr ~l)
 
       (keyword? l)
-     `(cljs.core/keyword-identical? ~ocr ~l)))
+     `(keyword-identical? ~ocr ~l)
 
       :else `(= ~ocr ~l))))
 
@@ -981,9 +945,8 @@ col with the first column and compile the result"
 (defn literal-pattern? [x]
   (instance? LiteralPattern x))
 
-#?(:clj
-    (defmethod print-method LiteralPattern [p ^Writer writer]
-      (.write writer (str "<LiteralPattern: " p ">"))))
+#_(defmethod print-method LiteralPattern [p ^Writer writer]
+      (.write writer (str "<LiteralPattern: " p ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; # Seq Pattern
@@ -1041,16 +1004,16 @@ col with the first column and compile the result"
   (toString [_]
     (str s))
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IMeta
+  (-meta [_] _meta)
+  IWithMeta
+  (-with-meta [_ new-meta]
     (SeqPattern. s new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup)[this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup)[this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :s s
       ::tag ::seq
@@ -1084,9 +1047,8 @@ col with the first column and compile the result"
 (defn seq-pattern? [x]
   (instance? SeqPattern x))
 
-#?(:clj
-    (defmethod print-method SeqPattern [p ^Writer writer]
-      (.write writer (str "<SeqPattern: " p ">"))))
+#_(defmethod print-method SeqPattern [p ^Writer writer]
+      (.write writer (str "<SeqPattern: " p ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; # Rest Pattern
@@ -1103,9 +1065,8 @@ col with the first column and compile the result"
 (defn rest-pattern? [x]
   (instance? RestPattern x))
 
-#?(:clj
-    (defmethod print-method RestPattern [p ^Writer writer]
-      (.write writer (str "<RestPattern: " (:p p) ">"))))
+#_(defmethod print-method RestPattern [p ^Writer writer]
+      (.write writer (str "<RestPattern: " (:p p) ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; # Map Pattern
@@ -1140,9 +1101,8 @@ col with the first column and compile the result"
 (defn map-key-pattern? [x]
   (instance? MapKeyPattern x))
 
-#?(:clj
-    (defmethod print-method MapKeyPattern [p ^Writer writer]
-      (.write writer (str "<MapKeyPattern: " (:p p) ">"))))
+#_(defmethod print-method MapKeyPattern [p ^Writer writer]
+      (.write writer (str "<MapKeyPattern: " (:p p) ">")))
 
 (declare map-pattern? guard-pattern)
 
@@ -1190,10 +1150,7 @@ col with the first column and compile the result"
                     (let [a (with-meta (gensym) {:tag 'java.util.Map})]
                       (cons
                         (guard-pattern (wildcard-pattern)
-                          (set [#?(:cljs
-                                  `(fn [~a] (= (set (keys ~a)) #{~@only}))
-                                   :clj
-                                  `(fn [~a] (= (.keySet ~a) #{~@only})))]))
+                          (set [`(fn [~a] (= (set (keys ~a)) #{~@only}))]))
                         ps))
                     (cons (wildcard-pattern) ps))
                   ps)]
@@ -1231,16 +1188,16 @@ col with the first column and compile the result"
   (equals [_ other]
     (and (instance? MapPattern other) (= m (:m other))))
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IMeta
+  (-meta [_] _meta)
+  IWithMeta
+  (-with-meta [_ new-meta]
     (MapPattern. m new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :m m
       ::tag ::map
@@ -1248,10 +1205,7 @@ col with the first column and compile the result"
 
   IPatternCompile
   (to-source* [this ocr]
-    #?(:cljs `(satisfies? ILookup ~ocr)
-       :clj (cond
-      *match-lookup*  `(or (instance? clojure.lang.ILookup ~ocr) (satisfies? IMatchLookup ~ocr))
-      :else `(instance? clojure.lang.ILookup ~ocr))))
+    `(satisfies? ILookup ~ocr))
 
   ISpecializeMatrix
   (specialize-matrix [this matrix]
@@ -1279,9 +1233,8 @@ col with the first column and compile the result"
 (defn map-pattern? [x]
   (instance? MapPattern x))
 
-#?(:clj
-    (defmethod print-method MapPattern [p ^Writer writer]
-      (.write writer (str "<MapPattern: " p ">"))))
+#_(defmethod print-method MapPattern [p ^Writer writer]
+      (.write writer (str "<MapPattern: " p ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; Vector Pattern
@@ -1374,16 +1327,16 @@ col with the first column and compile the result"
          (= [v t size offset rest?]
             (map #(% other) [:v :t :size :offset :rest?]))))
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IMeta
+  (-meta [_] _meta)
+  IWithMeta
+  (-with-meta [_ new-meta]
     (VectorPattern. v t size offset rest? new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :v v
       :t t
@@ -1448,9 +1401,8 @@ col with the first column and compile the result"
 (defn vector-pattern? [x]
   (instance? VectorPattern x))
 
-#?(:clj
-    (defmethod print-method VectorPattern [p ^Writer writer]
-      (.write writer (str "<VectorPattern: " p ">"))))
+    #_(defmethod print-method VectorPattern [p ^Writer writer]
+      (.write writer (str "<VectorPattern: " p ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; Or Patterns
@@ -1475,16 +1427,16 @@ col with the first column and compile the result"
   (equals [_ other]
     (and (instance? OrPattern other) (= ps (:ps other))))
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IMeta
+  (-meta [_] _meta)
+  IWithMeta
+  (-with-meta [_ new-meta]
     (OrPattern. ps new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :ps ps
       ::tag ::or
@@ -1504,9 +1456,8 @@ col with the first column and compile the result"
 (defn or-pattern? [x]
   (instance? OrPattern x))
 
-#?(:clj
-    (defmethod print-method OrPattern [p ^Writer writer]
-      (.write writer (str "<OrPattern: " (:ps p) ">"))))
+#_(defmethod print-method OrPattern [p ^Writer writer]
+      (.write writer (str "<OrPattern: " (:ps p) ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; ## Guard Patterns
@@ -1534,16 +1485,16 @@ col with the first column and compile the result"
          (= p (:p other))
          (= gs (:gs other))))
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IMeta
+  (-meta [_] _meta)
+  IWithMeta
+  (-with-meta [_ new-meta]
     (GuardPattern. p gs new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :p p
       :gs gs
@@ -1570,9 +1521,8 @@ col with the first column and compile the result"
 (defn guard-pattern? [x]
   (instance? GuardPattern x))
 
-#?(:clj
-    (defmethod print-method GuardPattern [p ^Writer writer]
-      (.write writer (str "<GuardPattern " (:p p) " :guard " (:gs p) ">"))))
+#_(defmethod print-method GuardPattern [p ^Writer writer]
+      (.write writer (str "<GuardPattern " (:p p) " :guard " (:gs p) ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; ## Function Application Pattern
@@ -1625,16 +1575,16 @@ col with the first column and compile the result"
          (= p (:p other))
          (= form (:form other))))
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IMeta
+  (-meta [_] _meta)
+  IWithMeta
+  (-with-meta [_ new-meta]
     (AppPattern. p form new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :p p
       :form form
@@ -1655,9 +1605,8 @@ col with the first column and compile the result"
 (defn app-pattern? [x]
   (instance? AppPattern x))
 
-#?(:clj
-    (defmethod print-method AppPattern [p ^Writer writer]
-      (.write writer (str "<AppPattern " (:p p) " :app " (:form p) ">"))))
+#_(defmethod print-method AppPattern [p ^Writer writer]
+      (.write writer (str "<AppPattern " (:p p) " :app " (:form p) ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; ## Predicate Patterns
@@ -1674,14 +1623,6 @@ col with the first column and compile the result"
 ;; will yield an incorrect decision tree.  In cases where overlapping
 ;; predicates are desired, use guard patterns.
 ;;
-
-(def preds (atom {}))
-
-(defmacro defpred
-  ([name]
-     (swap! preds assoc name name))
-  ([name f]
-     (swap! preds assoc name f)))
 
 (declare predicate-pattern?)
 
@@ -1702,16 +1643,16 @@ col with the first column and compile the result"
          (= p (:p other))
          (= gs (:gs other))))  
 
-  #?(:clj clojure.lang.IObj :cljs IMeta)
-  (#?(:clj meta :cljs -meta) [_] _meta)
-  #?(:cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta) [_ new-meta]
+  IMeta
+  (-meta [_] _meta)
+  IWithMeta
+  (-with-meta [_ new-meta]
     (PredicatePattern. p gs new-meta))
 
-  #?(:clj clojure.lang.ILookup :cljs ILookup)
-  (#?(:clj valAt :cljs -lookup) [this k]
-    (#?(:clj .valAt :cljs -lookup) this k nil))
-  (#?(:clj valAt :cljs -lookup) [this k not-found]
+  ILookup
+  (-lookup [this k]
+    (-lookup this k nil))
+  (-lookup [this k not-found]
     (case k
       :p p
       :gs gs
@@ -1738,9 +1679,8 @@ col with the first column and compile the result"
 (defn predicate-pattern? [x]
   (instance? PredicatePattern x))
 
-#?(:clj
-    (defmethod print-method PredicatePattern [p ^Writer writer]
-      (.write writer (str "<PredicatePattern " (:p p) " :when " (:gs p) ">"))))
+#_(defmethod print-method PredicatePattern [p ^Writer writer]
+      (.write writer (str "<PredicatePattern " (:p p) " :when " (:gs p) ">")))
 
 ;; -----------------------------------------------------------------------------
 ;; Pattern Comparisons
@@ -1784,35 +1724,38 @@ col with the first column and compile the result"
   pattern) ~ocr)`, using `=` to test for a match."
   (fn [pattern ocr] (::tag pattern)))
 
-(defmulti emit-pattern 
+(defmulti emit-pattern
   "Returns the corresponding pattern for the given syntax. Dispatches
   on the class of its argument. For example, `[(:or 1 2) 2]` is dispatched
   as clojure.lang.IPersistentVector"
   (fn [pattern] (syntax-tag pattern)))
 
 (extend-protocol ISyntaxTag
-  #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector)
+   PersistentVector
   (syntax-tag [_] ::vector)
-  #?(:clj clojure.lang.ISeq :cljs ISeq)
+  ISeq
   (syntax-tag [_] ::seq)
-  #?(:clj clojure.lang.IPersistentMap :cljs IMap)
+  IMap
   (syntax-tag [_] ::map)
-  #?(:clj clojure.lang.Symbol :cljs Symbol)
+  Symbol
   (syntax-tag [_] ::symbol)
-  #?(:clj Object :cljs object)
+  object
   (syntax-tag [_] :default)
   nil
   (syntax-tag [_] :default))
 
-#?(:cljs
+;TODO Yehonathan - what is the list of js types?
 (extend-type number
+  ISyntaxTag
+  (syntax-tag [_] :default))
+
+(extend-type boolean
   ISyntaxTag
   (syntax-tag [_] :default))
 
 (extend-type string
   ISyntaxTag
-  (syntax-tag [_] :default)))
-
+  (syntax-tag [_] :default))
 
 
 ;; ============================================================================
@@ -1895,7 +1838,7 @@ col with the first column and compile the result"
   [[p _ gs]]
   (let [gs (if (not (vector? gs)) [gs] gs)]
     (assert (every? symbol? gs) (str "Invalid predicate expression " gs))
-    (assert (every? #(contains? @preds %) gs) (str "Unknown predicate in " gs))
+    #_(assert (every? #(contains? @preds %) gs) (str "Unknown predicate in " gs))
     (predicate-pattern (emit-pattern p) (set gs))))
 
 (defmethod emit-pattern-for-syntax [:default :guard]
@@ -1920,17 +1863,17 @@ col with the first column and compile the result"
 (defmethod emit-pattern-for-syntax :default
   [[_ s :as l]]
   (throw
-    (#?(:clj AssertionError. :cljs js/Error.)
+    (js/Error.
       (str "Invalid list syntax " s " in " l ". "
         "Valid syntax: "
         (vec
           (remove #(= % :default)
             (keys
               (.getMethodTable
-                ^clojure.lang.MultiFn emit-pattern-for-syntax))))))))
+                ^IMultiFn emit-pattern-for-syntax))))))))
 
 
-(let [void #?(:clj (Object.) :cljs (js-obj))
+(let [void (js-obj)
       void? #(identical? void %)
       infix-keyword? #(#{:when :as :guard} %)]
   ;; void is a unique placeholder for nothing -- we can't use nil
@@ -1985,7 +1928,7 @@ col with the first column and compile the result"
           (if (contains? seen pat)
             (recur pats seen (conj dups pat))
             (recur pats (conj seen pat) dups))
-          
+
           (vector? pat)
           (recur (concat pats pat) seen dups)
 
@@ -2022,7 +1965,7 @@ col with the first column and compile the result"
   (let [pat (group-keywords pat)]
     (when (not (vector? pat))
       (throw
-        (#?(:clj AssertionError. :cljs js/Error.)
+        (js/Error.
           (str "Pattern row " rownum
             ": Pattern rows must be wrapped in []."
             " Try changing " pat " to [" pat "]." 
@@ -2031,14 +1974,14 @@ col with the first column and compile the result"
                 " They cannot be wrapped in a :when guard, for example"))))))
     (when (not= (count pat) nvars)
       (throw
-        (#?(:clj AssertionError. :cljs js/Error.)
+        (js/Error.
           (str "Pattern row " rownum
             ": Pattern row has differing number of patterns. "
             pat " has " (count pat) " pattern/s, expecting "
             nvars " for occurrences " vars))))
     (when-let [duplicates (seq (find-duplicate-wildcards pat))]
       (throw
-        (#?(:clj AssertionError. :cljs js/Error.)
+        (js/Error.
           (str "Pattern row " rownum
             ": Pattern row reuses wildcards in " pat
             ".  The following wildcards are ambiguous: "
@@ -2052,12 +1995,12 @@ col with the first column and compile the result"
 (defn check-matrix-args [vars clauses]
   (when (symbol? vars)
     (throw
-      (#?(:clj AssertionError. :cljs js/Error.)
+      (js/Error.
         (str "Occurrences must be in a vector."
           " Try changing " vars " to [" vars "]"))))
   (when (not (vector? vars))
     (throw
-      (#?(:clj AssertionError. :cljs js/Error.)
+      (js/Error.
         (str "Occurrences must be in a vector. "
           vars " is not a vector"))))
   (let [nvars (count vars)
@@ -2065,7 +2008,7 @@ col with the first column and compile the result"
     (doseq [[[pat _] rownum] (map vector (butlast cls) (rest (range)))]
       (when (= :else pat)
         (throw
-          (#?(:clj AssertionError. :cljs js/Error.)
+          (js/Error.
             (str "Pattern row " rownum
               ": :else form only allowed on final pattern row"))))
       (check-pattern pat vars nvars rownum))
@@ -2074,7 +2017,7 @@ col with the first column and compile the result"
         (check-pattern pat vars nvars (count cls)))))
   (when (odd? (count clauses)) 
     (throw
-      (#?(:clj AssertionError. :cljs js/Error.)
+      (js/Error.
         (str "Uneven number of Pattern Rows. The last form `"
           (last clauses) "` seems out of place.")))))
 
@@ -2109,14 +2052,9 @@ col with the first column and compile the result"
                  (if default
                    (conj (vec cs)
                      [last-match
-                       #?(:cljs
-                         `(throw
+                       `(throw
                             (js/Error.
-                              (str "No matching clause: " ~@(interpose " " vs))))
-                          :clj
-                         `(throw
-                            (IllegalArgumentException.
-                              (str "No matching clause: " ~@(interpose " " vs)))))])
+                              (str "No matching clause: " ~@(interpose " " vs))))])
                    cs)))]
       (pattern-matrix
         (vec (map #(apply to-pattern-row %) cs))
@@ -2150,139 +2088,4 @@ col with the first column and compile the result"
         compile
         executable-form))))
 
-;; ============================================================================
-;; # Match macros
-
-(defmacro match
-  "Pattern match a row of occurrences. Take a vector of occurrences, vars.
-  Clause question-answer syntax is like `cond`. Questions must be
-  wrapped in a vector, with same arity as vars. Last question can be :else,
-  which expands to a row of wildcards. Optionally may take a single
-  var not wrapped in a vector, questions then need not be wrapped in a
-  vector.
-
-  Example:
-  (let [x 1
-        y 2]
-    (match [x y 3]
-      [1 2 3] :answer1
-      :else :default-answer))"
-  [vars & clauses]
-  (let [[vars clauses]
-        (if (vector? vars)
-          [vars clauses]
-          [(vector vars)
-            (mapcat (fn [[c a]]
-                      [(if (not= c :else) (vector c) c) a])
-              (partition 2 clauses))])]
-   (binding [*line* (-> &form meta :line)
-             *locals* (dissoc &env '_)
-             *warned* (atom false)]
-     `~(clj-form vars clauses))))
-
-(defmacro matchv [type vars & clauses]
-  (binding [*vector-type* type
-            *line* (-> &form meta :line)
-            *locals* (dissoc &env '_)
-            *warned* (atom false)]
-    `~(clj-form vars clauses)))
-
-(defmacro matchm
-  "Same as match but supports IMatchLookup when
-  matching maps."
-  [vars & clauses]
-  (let [[vars clauses]
-        (if (vector? vars)
-          [vars clauses]
-          [(vector vars)
-           (mapcat (fn [[c a]]
-                     [(if (not= c :else) (vector c) c) a])
-             (partition 2 clauses))])]
-    (binding [*match-lookup* true
-              *line* (-> &form meta :line)
-              *locals* (dissoc &env '_)
-              *warned* (atom false)]
-      `~(clj-form vars clauses))))
-
-(defmacro match-let [bindings & body]
-  (let [bindvars# (take-nth 2 bindings)]
-    `(let ~bindings
-       (match [~@bindvars#]
-         ~@body))))
-(defmacro asets [a vs]
-  `(do
-     ~@(map (fn [a b c] (concat a (list b c)))
-         (repeat `(aset ~a)) (range (count vs)) vs)
-     ~a))
-
-(defmacro match
-  [vars & clauses]
-  (let [[vars clauses]
-        (if (vector? vars)
-          [vars clauses]
-          [(vector vars)
-            (mapcat (fn [[c a]]
-                      [(if (not= c :else) (vector c) c) a])
-              (partition 2 clauses))])]
-   (binding [*line* (-> &form meta :line)
-             *locals* (dissoc (:locals &env) '_)
-             *warned* (atom false)]
-     `~(clj-form vars clauses))))
-
-(defmacro match*
-  [vars & clauses]
-  (let [[vars clauses]
-        (if (vector? vars)
-          [vars clauses]
-          [(vector vars)
-            (mapcat (fn [[c a]]
-                      [(if (not= c :else) (vector c) c) a])
-              (partition 2 clauses))])]
-   (binding [*line* (-> &form meta :line)
-             *locals* (dissoc (:locals &env) '_)
-             *warned* (atom false)
-             *no-backtrack* true]
-     `~(clj-form vars clauses))))
-
-(defmacro matchv [type vars & clauses]
-  (binding [*vector-type* type
-            *line* (-> &form meta :line)
-            *locals* (dissoc (:locals &env) '_)
-            *warned* (atom false)]
-    `~(clj-form vars clauses)))
-
-
-(defmacro matchv* [type vars & clauses]
-  (binding [*vector-type* type
-            *line* (-> &form meta :line)
-            *locals* (dissoc (:locals &env) '_)
-            *warned* (atom false)
-            *no-backtrack* true]
-    `~(clj-form vars clauses)))
-
-(defmacro matchm
-  [vars & clauses]
-  (let [[vars clauses]
-        (if (vector? vars)
-          [vars clauses]
-          [(vector vars)
-            (mapcat (fn [[c a]]
-                      [(if (not= c :else) (vector c) c) a])
-              (partition 2 clauses))])]
-   (binding [*line* (-> &form meta :line)
-             *locals* (dissoc (:locals &env) '_)
-             *warned* (atom false)]
-     `~(clj-form vars clauses))))
-
-(defmacro match-let [bindings & body]
-  (let [bindvars# (take-nth 2 bindings)]
-    `(let ~bindings
-       (match [~@bindvars#]
-         ~@body))))
-
-(defmacro match-let* [bindings & body]
-  (let [bindvars# (take-nth 2 bindings)]
-    `(let ~bindings
-       (match* [~@bindvars#]
-         ~@body))))
 
