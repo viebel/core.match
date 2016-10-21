@@ -13,7 +13,6 @@
   ([name f]
      (swap! preds assoc name f)))
 
-
 (defmacro match
   "Pattern match a row of occurrences. Take a vector of occurrences, vars.
   Clause question-answer syntax is like `cond`. Questions must be
@@ -36,8 +35,7 @@
             (mapcat (fn [[c a]]
                       [(if (not= c :else) (vector c) c) a])
               (partition 2 clauses))])]
-    `~(clj-form vars clauses)
-   #_(binding [cljs.core.match-fn/*line* (-> &form meta :line)
+   (binding [cljs.core.match-fn/*line* (-> &form meta :line)
              cljs.core.match-fn/*locals* (dissoc &env '_)
              cljs.core.match-fn/*warned* (atom false)]
      `~(cljs.core.match-fn/clj-form vars clauses))))
