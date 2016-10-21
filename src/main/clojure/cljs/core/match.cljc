@@ -1869,6 +1869,7 @@ col with the first column and compile the result"
 
 (defmethod emit-pattern :default
   [pat]
+  (println "emit-pattern :default" pat)
   (literal-pattern pat))
 
 (declare emit-pattern-for-syntax or-pattern as-pattern guard-pattern
