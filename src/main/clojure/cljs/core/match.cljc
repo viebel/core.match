@@ -1777,14 +1777,22 @@ col with the first column and compile the result"
 ;; =============================================================================
 ;; # Interface
 
-(defmulti to-source 
+(defmulti to-source
   "Returns a Clojure form that, when executed, is truthy if the
   pattern matches the occurrence. Dispatches on the `type` of the
   pattern. For instance, a literal pattern might return `(= ~(:pattern
   pattern) ~ocr)`, using `=` to test for a match."
-  (fn [pattern ocr] (::tag pattern)))
+  (fn [pattern ocr]
+    #_(println "to-source:" (::tag pattern))
+    (::tag pattern)))
 
-(defmulti emit-pattern 
+(defmethod to-source ::literal [pattern ocr]
+  true
+  #_(println "to-source ::literal")
+  #_(println ~(:pattern pattern) " --- " ~ocr)
+  #_(println pattern " --- " ocr))
+
+(defmulti emit-pattern
   "Returns the corresponding pattern for the given syntax. Dispatches
   on the class of its argument. For example, `[(:or 1 2) 2]` is dispatched
   as clojure.lang.IPersistentVector"
