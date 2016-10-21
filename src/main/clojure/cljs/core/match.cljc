@@ -907,7 +907,8 @@ col with the first column and compile the result"
   #?(:cljs IMeta)
   (#?(:clj meta :cljs -meta)[_]
     _meta)
-  #?(:cljs IPatternCompile;TODO Yehonathan - why do we have to include that in cljs? see dag-clause-to-clj WildcardPattern has to implememts IPatternCompile
+  ;TODO Yehonathan - why do we have to include that in cljs? see dag-clause-to-clj WildcardPattern has to implememts IPatternCompile
+  #?(:cljs IPatternCompile
       (to-source* [this ocr]
                   ;matches everything
                   true))
