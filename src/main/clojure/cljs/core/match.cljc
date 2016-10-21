@@ -471,7 +471,7 @@
 (declare to-source)
 
 (defn dag-clause-to-clj [occurrence pattern action]
-  (js/console.log "dag-clause-to-clj: " pattern)
+  (js/console.log "dag-clause-to-clj: " pattern "--" (implements?  IPatternCompile pattern))
   (println (str "dag-clause-to-clj:" pattern "--" (implements?  IPatternCompile pattern)))
   (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (implements? IPatternCompile pattern))
                (to-source* pattern occurrence)
@@ -907,7 +907,24 @@ col with the first column and compile the result"
   #?(:cljs IMeta)
   (#?(:clj meta :cljs -meta)[_]
     _meta)
+  #?(:cljs IPatternCompile;TODO Yehonathan - why do we have to include that in cljs? see dag-clause-to-clj WildcardPattern has to implememts IPatternCompile
+      (to-source* [this ocr]
+                  ;matches everything
+                  true))
 
+     (and (symbol? l) (not (-> l meta :local)))
+     `(= ~ocr '~l)
+
+     #?@(:cljs
+          ((or (number? l) (string? l)
+               (true? l) (false? l)
+               (nil? l))
+           `(identical? ~ocr ~l)
+
+           (keyword? l)
+           `(cljs.core/keyword-identical? ~ocr ~l)))
+
+      :else `(= ~ocr ~l)))
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
     (#?(:clj .valAt :cljs -lookup) this k nil))
