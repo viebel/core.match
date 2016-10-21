@@ -458,7 +458,9 @@
 (declare to-source)
 
 (defn dag-clause-to-clj [occurrence pattern action]
-  (js/alert (str "dag-clause-to-clj:" pattern))
+  (println (str "dag-clause-to-clj:" pattern -- (instance? IPatternCompile pattern)))
+(do (js* "debugger;")
+       nil)
   (let [test (if (instance? #?(:clj clojure.core.match.protocols.IPatternCompile :cljs IPatternCompile) pattern)
                (to-source* pattern occurrence) 
                (to-source pattern occurrence))]
@@ -1798,7 +1800,6 @@ col with the first column and compile the result"
   on the class of its argument. For example, `[(:or 1 2) 2]` is dispatched
   as clojure.lang.IPersistentVector"
   (fn [pattern] 
-    (js/alert (str "emit-pattern: " pattern " -- " (syntax-tag pattern)))
     (println (str "emit-pattern: " pattern " -- " (syntax-tag pattern)))
     (syntax-tag pattern)))
 
