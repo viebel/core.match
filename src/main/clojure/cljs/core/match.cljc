@@ -8,7 +8,7 @@
             (:import [java.io Writer]
                      [clojure.core.match.protocols IExistentialPattern IPseudoPattern]))
   :cljs ((:require [clojure.set :as set]
-                   [cljs.core :refer [SubVec Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
+                   [cljs.core :refer [Subvec Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
                    [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
 
 
@@ -248,8 +248,9 @@
   (swap [this n]
     (let [x (nth this n)]
       (prepend (drop-nth this n) x))))
+
 #?(:cljs
-(extend-type SubVec
+(extend-type Subvec
   IVecMod
   (prepend [this x]
     (into [x] this))
