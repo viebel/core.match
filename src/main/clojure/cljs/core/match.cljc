@@ -201,7 +201,7 @@
     (cond
       (= t ::vector) `(vector? ~ocr)
       #?@(:cljs ((.isArray ^Class c) `(cljs.core/array? ~ocr)))
-      :else `(instance? ~c ~ocr))))
+      :else `(satisfies? ~c ~ocr))))
 
 (defmethod test-with-size-inline ::vector
   [t ocr size]
@@ -283,7 +283,7 @@
 (deftype PatternRow [ps action bindings]
   Object
   (equals [_ other]
-    (and (instance? PatternRow other)
+    (and (satisfies? PatternRow other)
          (= ps (:ps other))
          (= action (:action other))
          (= bindings (:bindings other))))
@@ -459,8 +459,8 @@
 
 (defn dag-clause-to-clj [occurrence pattern action]
   (println (str "dag-clause-to-clj:" pattern "--" (implements?  IPatternCompile pattern)))
-  (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (implements?? IPatternCompile pattern))
-               (to-source* pattern occurrence) 
+  (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (implements? IPatternCompile pattern))
+               (to-source* pattern occurrence)
                (to-source pattern occurrence))]
     [test (n-to-clj action)]))
 
@@ -564,7 +564,7 @@
       (map (fn [[p ocr]] [(:sym p) (leaf-bind-expr ocr)])))))
 
 (defn existential-pattern? [x]
-  (instance? IExistentialPattern x))
+  (#?(:clj instance? :cljs implements?) IExistentialPattern x))
 
 (defn wildcard-or-existential? [x]
   (or (wildcard-pattern? x)
@@ -625,7 +625,7 @@
       (default-specialize-matrix p matrix))))
 
 (defn pseudo-pattern? [x]
-  (instance? IPseudoPattern x))
+  (#?(:clj instance? :cljs implements?) IPseudoPattern x))
 
 (defn pseudo-patterns [matrix i]
   (filter pseudo-pattern? (column matrix i)))
@@ -882,7 +882,7 @@ col with the first column and compile the result"
 (deftype WildcardPattern [sym named _meta]
   Object
   (equals [_ other]
-    (and (instance? WildcardPattern other)
+    (and (#?(:clj instance? :cljs implements?) WildcardPattern other)
          (if named
            (= sym (:sym other))
            (not (:named other)))))
@@ -912,13 +912,13 @@ col with the first column and compile the result"
       (WildcardPattern. sym true nil))))
 
 (defn wildcard-pattern? [x]
-  (instance? WildcardPattern x))
+  (#?(:clj instance? :cljs implements?) WildcardPattern x))
 
 ;; Local bindings in pattern matching are emulated by using named wildcards.
 ;; See clojure.lang.Symbol dispatch for `emit-pattern` 
 
 (defn named-wildcard-pattern? [x]
-  (and (instance? WildcardPattern x) (:named x)))
+  (and (#?(:clj instance? :cljs implements?) WildcardPattern x) (:named x)))
 
 #?(:clj (defmethod print-method WildcardPattern [p ^Writer writer]
   (.write writer (str "<WildcardPattern: " (:sym p) ">"))))
@@ -938,7 +938,7 @@ col with the first column and compile the result"
       "nil"
       (pr-str l)))
   (equals [_ other]
-    (and (instance? LiteralPattern other) (= l (:l other))))
+    (and (#?(:clj instance? :cljs implements?) LiteralPattern other) (= l (:l other))))
 
   #?(:clj clojure.lang.IObj :cljs IMeta)
   (#?(:clj meta :cljs -meta) [_] _meta)
@@ -980,7 +980,7 @@ col with the first column and compile the result"
   (LiteralPattern. l (meta l)))
 
 (defn literal-pattern? [x]
-  (instance? LiteralPattern x))
+  (#?(:clj instance? :cljs implements?) LiteralPattern x))
 
 #?(:clj
     (defmethod print-method LiteralPattern [p ^Writer writer]
@@ -1083,7 +1083,7 @@ col with the first column and compile the result"
   (SeqPattern. s nil))
 
 (defn seq-pattern? [x]
-  (instance? SeqPattern x))
+  (#?(:clj instance? :cljs implements?) SeqPattern x))
 
 #?(:clj
     (defmethod print-method SeqPattern [p ^Writer writer]
@@ -1102,7 +1102,7 @@ col with the first column and compile the result"
   (assoc (RestPattern. p) ::tag ::rest))
 
 (defn rest-pattern? [x]
-  (instance? RestPattern x))
+  (#?(:clj instance? :cljs implements?) RestPattern x))
 
 #?(:clj
     (defmethod print-method RestPattern [p ^Writer writer]
@@ -1139,7 +1139,7 @@ col with the first column and compile the result"
   (assoc (MapKeyPattern. p) ::tag ::map-key))
 
 (defn map-key-pattern? [x]
-  (instance? MapKeyPattern x))
+  (#?(:clj instance? :cljs implements?) MapKeyPattern x))
 
 #?(:clj
     (defmethod print-method MapKeyPattern [p ^Writer writer]
@@ -1230,7 +1230,7 @@ col with the first column and compile the result"
   (toString [_]
     (str m " :only " (or (:only _meta) [])))
   (equals [_ other]
-    (and (instance? MapPattern other) (= m (:m other))))
+    (and (#?(:clj instance? :cljs implements?) MapPattern other) (= m (:m other))))
 
   #?(:clj clojure.lang.IObj :cljs IMeta)
   (#?(:clj meta :cljs -meta) [_] _meta)
@@ -1251,8 +1251,8 @@ col with the first column and compile the result"
   (to-source* [this ocr]
     #?(:cljs `(satisfies? ILookup ~ocr)
        :clj (cond
-      *match-lookup*  `(or (instance? clojure.lang.ILookup ~ocr) (satisfies? IMatchLookup ~ocr))
-      :else `(instance? clojure.lang.ILookup ~ocr))))
+      *match-lookup*  `(or (#?(:clj instance? :cljs implements?) #?(:clj clojure.lang.ILookup :cljs ILookup) ~ocr) (satisfies? IMatchLookup ~ocr))
+      :else `(satisfies? #?(:clj clojure.lang.ILookup :cljs ILookup) ~ocr))))
 
   ISpecializeMatrix
   (specialize-matrix [this matrix]
@@ -1278,7 +1278,7 @@ col with the first column and compile the result"
      (MapPattern. m nil)))
 
 (defn map-pattern? [x]
-  (instance? MapPattern x))
+  (satisfies? MapPattern x))
 
 #?(:clj
     (defmethod print-method MapPattern [p ^Writer writer]
@@ -1371,7 +1371,7 @@ col with the first column and compile the result"
   (toString [_]
     (str v " " t))
   (equals [_ other]
-    (and (instance? VectorPattern other)
+    (and (satisfies? VectorPattern other)
          (= [v t size offset rest?]
             (map #(% other) [:v :t :size :offset :rest?]))))
 
@@ -1447,7 +1447,7 @@ col with the first column and compile the result"
       (VectorPattern. v t size offset rest? nil))))
 
 (defn vector-pattern? [x]
-  (instance? VectorPattern x))
+  (satisfies? VectorPattern x))
 
 #?(:clj
     (defmethod print-method VectorPattern [p ^Writer writer]
@@ -1474,7 +1474,7 @@ col with the first column and compile the result"
   (toString [this]
     (str ps))
   (equals [_ other]
-    (and (instance? OrPattern other) (= ps (:ps other))))
+    (and (satisfies? OrPattern other) (= ps (:ps other))))
 
   #?(:clj clojure.lang.IObj :cljs IMeta)
   (#?(:clj meta :cljs -meta) [_] _meta)
@@ -1503,7 +1503,7 @@ col with the first column and compile the result"
   (OrPattern. p nil))
 
 (defn or-pattern? [x]
-  (instance? OrPattern x))
+  (satisfies? OrPattern x))
 
 #?(:clj
     (defmethod print-method OrPattern [p ^Writer writer]
@@ -1531,7 +1531,7 @@ col with the first column and compile the result"
   (toString [this]
     (str p " :guard " gs))
   (equals [_ other]
-    (and (instance? GuardPattern other)
+    (and (satisfies? GuardPattern other)
          (= p (:p other))
          (= gs (:gs other))))
 
@@ -1569,7 +1569,7 @@ col with the first column and compile the result"
   (GuardPattern. p gs nil))
 
 (defn guard-pattern? [x]
-  (instance? GuardPattern x))
+  (satisfies? GuardPattern x))
 
 #?(:clj
     (defmethod print-method GuardPattern [p ^Writer writer]
@@ -1622,7 +1622,7 @@ col with the first column and compile the result"
   (toString [this]
   (str p " :<< " form))
   (equals [_ other]
-    (and (instance? AppPattern other)
+    (and (satisfies? AppPattern other)
          (= p (:p other))
          (= form (:form other))))
 
@@ -1654,7 +1654,7 @@ col with the first column and compile the result"
   (AppPattern. p form nil))
 
 (defn app-pattern? [x]
-  (instance? AppPattern x))
+  (satisfies? AppPattern x))
 
 #?(:clj
     (defmethod print-method AppPattern [p ^Writer writer]
@@ -1699,7 +1699,7 @@ col with the first column and compile the result"
   (toString [this]
     (str p " :when " gs))
   (equals [_ other]
-    (and (instance? PredicatePattern other)
+    (and (satisfies? PredicatePattern other)
          (= p (:p other))
          (= gs (:gs other))))  
 
@@ -1737,7 +1737,7 @@ col with the first column and compile the result"
   (PredicatePattern. p gs nil))
 
 (defn predicate-pattern? [x]
-  (instance? PredicatePattern x))
+  (satisfies? PredicatePattern x))
 
 #?(:clj
     (defmethod print-method PredicatePattern [p ^Writer writer]
