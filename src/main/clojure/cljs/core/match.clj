@@ -1,5 +1,5 @@
 (ns cljs.core.match
-  (:require [cljs.core.match-fn :refer [*match-lookup* *recur-present* *vector-type* *no-backtrack* *warned* *line* *locals* clj-form]]))
+  (:require [klipse.match-fn :refer [*match-lookup* *recur-present* *vector-type* *no-backtrack* *warned* *line* *locals* clj-form]]))
  ;; ============================================================================
 ;; # Match inner functions
  
