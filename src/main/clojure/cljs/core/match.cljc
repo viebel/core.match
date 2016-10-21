@@ -471,9 +471,9 @@
 (declare to-source)
 
 (defn dag-clause-to-clj [occurrence pattern action]
-  (js/console.log "dag-clause-to-clj: " pattern "--" (implements?  IPatternCompile pattern))
-  (println (str "dag-clause-to-clj:" pattern "--" (implements?  IPatternCompile pattern)))
-  (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (implements? IPatternCompile pattern))
+  (when-not (satisfies? IPatternCompile pattern)
+    (js/console.log "dag-clause-to-clj: " pattern "--" (implements?  IPatternCompile pattern)))
+  (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (satisfies? IPatternCompile pattern))
                (to-source* pattern occurrence)
                (to-source pattern occurrence))]
     [test (n-to-clj action)]))
@@ -911,6 +911,7 @@ col with the first column and compile the result"
   IPatternCompile
   (to-source* [this ocr]
     ;matches everything
+    (println "WildcardPattern to-source*" this "--" ocr)
     true)
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
@@ -1802,21 +1803,13 @@ col with the first column and compile the result"
   pattern. For instance, a literal pattern might return `(= ~(:pattern
   pattern) ~ocr)`, using `=` to test for a match."
   (fn [pattern ocr]
-    #_(println "to-source:" (::tag pattern))
     (::tag pattern)))
-
-(defmethod to-source ::literal [pattern ocr]
-  true
-  #_(println "to-source ::literal")
-  #_(println ~(:pattern pattern) " --- " ~ocr)
-  #_(println pattern " --- " ocr))
 
 (defmulti emit-pattern
   "Returns the corresponding pattern for the given syntax. Dispatches
   on the class of its argument. For example, `[(:or 1 2) 2]` is dispatched
   as clojure.lang.IPersistentVector"
-  (fn [pattern] 
-    (println (str "defmulti emit-pattern: " pattern " -- " (syntax-tag pattern)))
+  (fn [pattern]
     (syntax-tag pattern)))
 
 (extend-protocol ISyntaxTag
