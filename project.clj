@@ -19,6 +19,7 @@
      :source-paths ["src/main/clojure"]
      :figwheel true
      :compiler {:output-to "resources/public/dev/js/main.dev.js"
+                :main "foo.test.main"
                 :asset-path "dev/js"
                 :output-dir "resources/public/dev/js"
                 :verbose true}
