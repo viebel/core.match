@@ -172,7 +172,7 @@
   [t] (throw (#?(:clj Exception. :cljs js/Error.)) (str "No tag specified for vector specialization " t)))
 
 (defmethod tag ::vector
-  [_] clojure.lang.IPersistentVector)
+  [_] #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector))
 
 (defn with-tag [t ocr]
   (let [the-tag (tag t)
@@ -471,6 +471,7 @@
 (declare to-source)
 
 (defn dag-clause-to-clj [occurrence pattern action]
+  (js/console.log "dag-clause-to-clj: " pattern)
   (println (str "dag-clause-to-clj:" pattern "--" (implements?  IPatternCompile pattern)))
   (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (implements? IPatternCompile pattern))
                (to-source* pattern occurrence)
@@ -1811,7 +1812,7 @@ col with the first column and compile the result"
   on the class of its argument. For example, `[(:or 1 2) 2]` is dispatched
   as clojure.lang.IPersistentVector"
   (fn [pattern] 
-    (println (str "emit-pattern: " pattern " -- " (syntax-tag pattern)))
+    (println (str "defmulti emit-pattern: " pattern " -- " (syntax-tag pattern)))
     (syntax-tag pattern)))
 
 (extend-protocol ISyntaxTag
@@ -1880,7 +1881,6 @@ col with the first column and compile the result"
 
 (defmethod emit-pattern :default
   [pat]
-  (println "emit-pattern :default" pat)
   (literal-pattern pat))
 
 (declare emit-pattern-for-syntax or-pattern as-pattern guard-pattern
