@@ -458,10 +458,8 @@
 (declare to-source)
 
 (defn dag-clause-to-clj [occurrence pattern action]
-  (println (str "dag-clause-to-clj:" pattern -- (instance? IPatternCompile pattern)))
-(do (js* "debugger;")
-       nil)
-  (let [test (if (instance? #?(:clj clojure.core.match.protocols.IPatternCompile :cljs IPatternCompile) pattern)
+  (println (str "dag-clause-to-clj:" pattern "--" (implements?  IPatternCompile pattern)))
+  (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (implements?? IPatternCompile pattern))
                (to-source* pattern occurrence) 
                (to-source pattern occurrence))]
     [test (n-to-clj action)]))
