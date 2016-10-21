@@ -1797,7 +1797,10 @@ col with the first column and compile the result"
   "Returns the corresponding pattern for the given syntax. Dispatches
   on the class of its argument. For example, `[(:or 1 2) 2]` is dispatched
   as clojure.lang.IPersistentVector"
-  (fn [pattern] (syntax-tag pattern)))
+  (fn [pattern] 
+    (js/alert (str "emit-pattern: " pattern " -- " (syntax-tag pattern)))
+    (println (str "emit-pattern: " pattern " -- " (syntax-tag pattern)))
+    (syntax-tag pattern)))
 
 (extend-protocol ISyntaxTag
   #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector)
