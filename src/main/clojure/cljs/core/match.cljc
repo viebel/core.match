@@ -458,6 +458,7 @@
 (declare to-source)
 
 (defn dag-clause-to-clj [occurrence pattern action]
+  (println "dag-clause-to-clj:" pattern)
   (let [test (if (instance? #?(:clj clojure.core.match.protocols.IPatternCompile :cljs IPatternCompile) pattern)
                (to-source* pattern occurrence) 
                (to-source pattern occurrence))]
@@ -965,13 +966,13 @@ col with the first column and compile the result"
      `(= ~ocr '~l)
 
      #?@(:cljs
-     ((or (number? l) (string? l)
-             (true? l) (false? l)
-             (nil? l))
-     `(identical? ~ocr ~l)
+          ((or (number? l) (string? l)
+               (true? l) (false? l)
+               (nil? l))
+           `(identical? ~ocr ~l)
 
-      (keyword? l)
-     `(cljs.core/keyword-identical? ~ocr ~l)))
+           (keyword? l)
+           `(cljs.core/keyword-identical? ~ocr ~l)))
 
       :else `(= ~ocr ~l))))
 
