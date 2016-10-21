@@ -35,10 +35,10 @@
             (mapcat (fn [[c a]]
                       [(if (not= c :else) (vector c) c) a])
               (partition 2 clauses))])]
-   (binding [cljs.core.match-fn/*line* (-> &form meta :line)
-             cljs.core.match-fn/*locals* (dissoc &env '_)
-             cljs.core.match-fn/*warned* (atom false)]
-     `~(cljs.core.match-fn/clj-form vars clauses))))
+   (binding [klipse.match-fn/*line* (-> &form meta :line)
+             klipse.match-fn/*locals* (dissoc &env '_)
+             klipse.match-fn/*warned* (atom false)]
+     `~(klipse.match-fn/clj-form vars clauses))))
 
 #_(defmacro matchv [type vars & clauses]
   (binding [*vector-type* type
