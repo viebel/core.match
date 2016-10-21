@@ -1816,10 +1816,10 @@ col with the first column and compile the result"
 #?(:cljs
 (extend-type number
   ISyntaxTag
-  (syntax-tag [_] ::default))
+  (syntax-tag [_] :default))
 (extend-type string
   ISyntaxTag
-  (syntax-tag [_] ::default)))
+  (syntax-tag [_] :default)))
 
 
 
