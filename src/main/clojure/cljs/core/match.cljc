@@ -11,6 +11,10 @@
                    [cljs.core :refer [Subvec Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
                    [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
 
+(defmacro dbg [x]
+  `(let [x# ~x]
+     (println (str '~x ": " x#))
+     x#))
 
 (def backtrack (js/Error.))
 
@@ -373,7 +377,7 @@
     (pattern-row ps action []))
   ([ps action bindings]
     (let [ps (if (vector? ps) ps (into [] ps))]
-      (PatternRow. ps action bindings))))
+      (PatternRow. ps action (dbg bindings)))))
 
 ;; NOTE: we don't use map destructuring here because PatternRow is
 ;; both ISeq and ILookup, but in map destructuring seq? is tested
@@ -1987,7 +1991,7 @@ col with the first column and compile the result"
   "Take an unprocessed pattern expression and an action expression and return
    a pattern row of the processed pattern expression plus the action epxression."
   [pat action]
-  (let [ps (map emit-pattern (group-keywords pat))]
+  (let [ps (dbg (map emit-pattern (group-keywords pat)))]
     (pattern-row ps action)))
 
 (defn wildcards-and-duplicates
