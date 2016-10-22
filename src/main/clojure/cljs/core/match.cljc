@@ -11,11 +11,6 @@
                    [cljs.core :refer [Subvec Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
                    [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
 
-(defmacro dbg [x]
-  `(let [x# ~x]
-     (println (str '~x ": " x#))
-     x#))
-
 (def backtrack (js/Error.))
 
 ;; =============================================================================
@@ -942,7 +937,7 @@ col with the first column and compile the result"
 ;; See clojure.lang.Symbol dispatch for `emit-pattern` 
 
 (defn named-wildcard-pattern? [x]
-  (and (#?(:clj instance? :cljs implements?) WildcardPattern x) (:named x)))
+  (and (instance? WildcardPattern x) (:named x)))
 
 #?(:clj (defmethod print-method WildcardPattern [p ^Writer writer]
   (.write writer (str "<WildcardPattern: " (:sym p) ">"))))
