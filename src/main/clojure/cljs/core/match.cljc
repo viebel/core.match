@@ -80,13 +80,13 @@
 
 (defn backtrack-expr []
   #?(:cljs
-    `(throw backtrack)
+    `(throw cljs.core.match/backtrack)
      :clj
     `(throw clojure.core.match/backtrack)))
 
 (defn backtrack-sym []
   #?(:cljs
-    'backtrack
+    'cljs.core.match/backtrack
      :clj
     'clojure.core.match/backtrack))
 
@@ -907,7 +907,6 @@ col with the first column and compile the result"
   IPatternCompile
   (to-source* [this ocr]
     ;matches everything
-    (println "WildcardPattern to-source*" this "--" ocr)
     true)
   #?(:clj clojure.lang.ILookup :cljs ILookup)
   (#?(:clj valAt :cljs -lookup) [this k]
@@ -2167,8 +2166,6 @@ col with the first column and compile the result"
     (binding [*recur-present* (or *recur-present*
                                   recur-present?
                                   *no-backtrack*)]
-      (println "emit-matrix" vars clauses
-               (emit-matrix vars clauses))
       (-> (emit-matrix vars clauses)
         compile
         executable-form))))
