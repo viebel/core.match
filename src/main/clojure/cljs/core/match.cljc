@@ -2167,6 +2167,8 @@ col with the first column and compile the result"
     (binding [*recur-present* (or *recur-present*
                                   recur-present?
                                   *no-backtrack*)]
+      (println "emit-matrix" vars clauses
+               (emit-matrix vars clauses))
       (-> (emit-matrix vars clauses)
         compile
         executable-form))))
