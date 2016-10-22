@@ -80,13 +80,13 @@
 
 (defn backtrack-expr []
   #?(:cljs
-    `(throw cljs.core.match/backtrack)
+    `(throw cljs.core.match$macros/backtrack)
      :clj
     `(throw clojure.core.match/backtrack)))
 
 (defn backtrack-sym []
   #?(:cljs
-    'cljs.core.match/backtrack
+    'cljs.core.match$macros/backtrack
      :clj
     'clojure.core.match/backtrack))
 
