@@ -143,6 +143,7 @@
   #?(:cljs
     `(get ~@args)
     ;;If not ClojureScript, defer to val-at*
+    :clj
     `(if (instance? clojure.lang.ILookup ~(first args))
        (get ~@args)
        (val-at* ~@args))))
@@ -377,7 +378,7 @@
     (pattern-row ps action []))
   ([ps action bindings]
     (let [ps (if (vector? ps) ps (into [] ps))]
-      (PatternRow. ps action (dbg bindings)))))
+      (PatternRow. ps action bindings))))
 
 ;; NOTE: we don't use map destructuring here because PatternRow is
 ;; both ISeq and ILookup, but in map destructuring seq? is tested
@@ -1833,7 +1834,9 @@ col with the first column and compile the result"
 #?(:cljs
 (extend-type number
   ISyntaxTag
-  (syntax-tag [_] :default))
+  (syntax-tag [_] :default)))
+
+#?(:cljs
 (extend-type string
   ISyntaxTag
   (syntax-tag [_] :default)))
@@ -1991,7 +1994,7 @@ col with the first column and compile the result"
   "Take an unprocessed pattern expression and an action expression and return
    a pattern row of the processed pattern expression plus the action epxression."
   [pat action]
-  (let [ps (dbg (map emit-pattern (group-keywords pat)))]
+  (let [ps (map emit-pattern (group-keywords pat))]
     (pattern-row ps action)))
 
 (defn wildcards-and-duplicates
