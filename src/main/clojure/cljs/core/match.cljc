@@ -11,8 +11,6 @@
                    [cljs.core :refer [Subvec Symbol PersistentHashMap PersistentVector ILookup IAssociative IIndexed ISeq INext ISeqable ICounted IWithMeta IMeta IFn ICollection ISequential IEquiv]]
                    [cljs.core.match.protocols :refer [IPatternCompile IContainsRestPattern IVectorPattern ISyntaxTag ISpecializeMatrix INodeCompile IMatchLookup IExistentialPattern IPseudoPattern IVecMod val-at prepend drop-nth swap n-to-clj to-source* specialize-matrix split syntax-tag]]))))
 
-(def backtrack (js/Error.))
-
 ;; =============================================================================
 ;; # Introduction
 ;;
@@ -82,13 +80,13 @@
 
 (defn backtrack-expr []
   #?(:cljs
-    `(throw cljs.core.match/backtrack)
+    `(throw backtrack)
      :clj
     `(throw clojure.core.match/backtrack)))
 
 (defn backtrack-sym []
   #?(:cljs
-    'cljs.core.match/backtrack
+    'backtrack
      :clj
     'clojure.core.match/backtrack))
 
@@ -169,7 +167,7 @@
   [_] true)
 
 (defmethod tag :default
-  [t] (throw (#?(:clj Exception. :cljs js/Error.)) (str "No tag specified for vector specialization " t)))
+  [t] (throw #?(:clj (Exception. (str "No tag specified for vector specialization " t)) :cljs (js/Error. (str "No tag specified for vector specialization " t)))))
 
 (defmethod tag ::vector
   [_] #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector))
@@ -1813,9 +1811,11 @@ col with the first column and compile the result"
 (extend-protocol ISyntaxTag
   #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector)
   (syntax-tag [_] ::vector)
-  #?(:clj clojure.lang.ISeq :cljs ISeq)
+  #?(:clj clojure.lang.ISeq :cljs List)
   (syntax-tag [_] ::seq)
-  #?(:clj clojure.lang.IPersistentMap :cljs IMap)
+  #?(:clj clojure.lang.IPersistentMap :cljs PersistentHashMap)
+  (syntax-tag [_] ::map)
+  #?(:cljs PersistentArrayMap)
   (syntax-tag [_] ::map)
   #?(:clj clojure.lang.Symbol :cljs Symbol)
   (syntax-tag [_] ::symbol)
