@@ -896,7 +896,7 @@ col with the first column and compile the result"
 (deftype WildcardPattern [sym named _meta]
   Object
   (equals [_ other]
-    (and (#?(:clj instance? :cljs implements?) WildcardPattern other)
+    (and (instance? WildcardPattern other)
          (if named
            (= sym (:sym other))
            (not (:named other)))))
@@ -931,7 +931,7 @@ col with the first column and compile the result"
       (WildcardPattern. sym true nil))))
 
 (defn wildcard-pattern? [x]
-  (#?(:clj instance? :cljs implements?) WildcardPattern x))
+  (instance? WildcardPattern x))
 
 ;; Local bindings in pattern matching are emulated by using named wildcards.
 ;; See clojure.lang.Symbol dispatch for `emit-pattern` 
@@ -957,7 +957,7 @@ col with the first column and compile the result"
       "nil"
       (pr-str l)))
   (equals [_ other]
-    (and (#?(:clj instance? :cljs implements?) LiteralPattern other) (= l (:l other))))
+    (and (instance? LiteralPattern other) (= l (:l other))))
 
   #?(:clj clojure.lang.IObj :cljs IMeta)
   (#?(:clj meta :cljs -meta) [_] _meta)
@@ -999,7 +999,7 @@ col with the first column and compile the result"
   (LiteralPattern. l (meta l)))
 
 (defn literal-pattern? [x]
-  (#?(:clj instance? :cljs implements?) LiteralPattern x))
+  (instance? LiteralPattern x))
 
 #?(:clj
     (defmethod print-method LiteralPattern [p ^Writer writer]
@@ -1102,7 +1102,7 @@ col with the first column and compile the result"
   (SeqPattern. s nil))
 
 (defn seq-pattern? [x]
-  (#?(:clj instance? :cljs implements?) SeqPattern x))
+  (instance? SeqPattern x))
 
 #?(:clj
     (defmethod print-method SeqPattern [p ^Writer writer]
@@ -1121,7 +1121,7 @@ col with the first column and compile the result"
   (assoc (RestPattern. p) ::tag ::rest))
 
 (defn rest-pattern? [x]
-  (#?(:clj instance? :cljs implements?) RestPattern x))
+  (instance? RestPattern x))
 
 #?(:clj
     (defmethod print-method RestPattern [p ^Writer writer]
@@ -1158,7 +1158,7 @@ col with the first column and compile the result"
   (assoc (MapKeyPattern. p) ::tag ::map-key))
 
 (defn map-key-pattern? [x]
-  (#?(:clj instance? :cljs implements?) MapKeyPattern x))
+  (instance? MapKeyPattern x))
 
 #?(:clj
     (defmethod print-method MapKeyPattern [p ^Writer writer]
@@ -1249,7 +1249,7 @@ col with the first column and compile the result"
   (toString [_]
     (str m " :only " (or (:only _meta) [])))
   (equals [_ other]
-    (and (#?(:clj instance? :cljs implements?) MapPattern other) (= m (:m other))))
+    (and (instance? MapPattern other) (= m (:m other))))
 
   #?(:clj clojure.lang.IObj :cljs IMeta)
   (#?(:clj meta :cljs -meta) [_] _meta)
