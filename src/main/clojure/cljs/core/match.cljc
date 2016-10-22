@@ -201,7 +201,7 @@
     (cond
       (= t ::vector) `(vector? ~ocr)
       #?@(:cljs ((.isArray ^Class c) `(cljs.core/array? ~ocr)))
-      :else `(satisfies? ~c ~ocr))))
+      :else `(instance? ~c ~ocr))))
 
 (defmethod test-with-size-inline ::vector
   [t ocr size]
@@ -296,7 +296,7 @@
 (deftype PatternRow [ps action bindings]
   Object
   (equals [_ other]
-    (and (satisfies? PatternRow other)
+    (and (instance? PatternRow other)
          (= ps (:ps other))
          (= action (:action other))
          (= bindings (:bindings other))))
@@ -471,8 +471,6 @@
 (declare to-source)
 
 (defn dag-clause-to-clj [occurrence pattern action]
-  (when-not (satisfies? IPatternCompile pattern)
-    (js/console.log "dag-clause-to-clj: " pattern "--" (implements?  IPatternCompile pattern)))
   (let [test (if #?(:clj (instance? clojure.core.match.protocols.IPatternCompile pattern) :cljs (satisfies? IPatternCompile pattern))
                (to-source* pattern occurrence)
                (to-source pattern occurrence))]
@@ -1297,7 +1295,7 @@ col with the first column and compile the result"
      (MapPattern. m nil)))
 
 (defn map-pattern? [x]
-  (satisfies? MapPattern x))
+  (instance? MapPattern x))
 
 #?(:clj
     (defmethod print-method MapPattern [p ^Writer writer]
@@ -1390,7 +1388,7 @@ col with the first column and compile the result"
   (toString [_]
     (str v " " t))
   (equals [_ other]
-    (and (satisfies? VectorPattern other)
+    (and (instance? VectorPattern other)
          (= [v t size offset rest?]
             (map #(% other) [:v :t :size :offset :rest?]))))
 
@@ -1466,7 +1464,7 @@ col with the first column and compile the result"
       (VectorPattern. v t size offset rest? nil))))
 
 (defn vector-pattern? [x]
-  (satisfies? VectorPattern x))
+  (instance? VectorPattern x))
 
 #?(:clj
     (defmethod print-method VectorPattern [p ^Writer writer]
@@ -1493,7 +1491,7 @@ col with the first column and compile the result"
   (toString [this]
     (str ps))
   (equals [_ other]
-    (and (satisfies? OrPattern other) (= ps (:ps other))))
+    (and (instance? OrPattern other) (= ps (:ps other))))
 
   #?(:clj clojure.lang.IObj :cljs IMeta)
   (#?(:clj meta :cljs -meta) [_] _meta)
@@ -1522,7 +1520,7 @@ col with the first column and compile the result"
   (OrPattern. p nil))
 
 (defn or-pattern? [x]
-  (satisfies? OrPattern x))
+  (instance? OrPattern x))
 
 #?(:clj
     (defmethod print-method OrPattern [p ^Writer writer]
@@ -1550,7 +1548,7 @@ col with the first column and compile the result"
   (toString [this]
     (str p " :guard " gs))
   (equals [_ other]
-    (and (satisfies? GuardPattern other)
+    (and (instance? GuardPattern other)
          (= p (:p other))
          (= gs (:gs other))))
 
@@ -1588,7 +1586,7 @@ col with the first column and compile the result"
   (GuardPattern. p gs nil))
 
 (defn guard-pattern? [x]
-  (satisfies? GuardPattern x))
+  (instance? GuardPattern x))
 
 #?(:clj
     (defmethod print-method GuardPattern [p ^Writer writer]
@@ -1641,7 +1639,7 @@ col with the first column and compile the result"
   (toString [this]
   (str p " :<< " form))
   (equals [_ other]
-    (and (satisfies? AppPattern other)
+    (and (instance? AppPattern other)
          (= p (:p other))
          (= form (:form other))))
 
@@ -1673,7 +1671,7 @@ col with the first column and compile the result"
   (AppPattern. p form nil))
 
 (defn app-pattern? [x]
-  (satisfies? AppPattern x))
+  (instance? AppPattern x))
 
 #?(:clj
     (defmethod print-method AppPattern [p ^Writer writer]
@@ -1718,7 +1716,7 @@ col with the first column and compile the result"
   (toString [this]
     (str p " :when " gs))
   (equals [_ other]
-    (and (satisfies? PredicatePattern other)
+    (and (instance? PredicatePattern other)
          (= p (:p other))
          (= gs (:gs other))))  
 
@@ -1756,7 +1754,7 @@ col with the first column and compile the result"
   (PredicatePattern. p gs nil))
 
 (defn predicate-pattern? [x]
-  (satisfies? PredicatePattern x))
+  (instance? PredicatePattern x))
 
 #?(:clj
     (defmethod print-method PredicatePattern [p ^Writer writer]
