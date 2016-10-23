@@ -167,7 +167,8 @@
   [_] true)
 
 (defmethod tag :default
-  [t] (throw #?(:clj (Exception. (str "No tag specified for vector specialization " t)) :cljs (js/Error. (str "No tag specified for vector specialization " t)))))
+  [t] (throw #?(:clj (Exception. (str "No tag specified for vector specialization " t))
+                :cljs (js/Error. (str "No tag specified for vector specialization " t)))))
 
 (defmethod tag ::vector
   [_] #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector))
@@ -192,7 +193,8 @@
             (symbol? the-tag) (Class/forName (str the-tag))
             :else (throw (Error. (str "Unsupported tag type" the-tag))))
             :cljs
-              (cond; TODO Yehonathan - what should be instead of `class?` and forName for cljs?
+              (cond
+                (= the-tag PersistentVector) the-tag ; TODO Yehonathan - what should be instead of `class?` and forName for cljs?
                 (string? the-tag) the-tag
                 (symbol? the-tag) (str (the-tag))
                 :else (throw (js/Error. (str "Unsupported tag type" the-tag)))))]
