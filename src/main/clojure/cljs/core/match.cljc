@@ -238,7 +238,7 @@
 ;; something from the middle of the vector to the front - thus prepend
 ;; and drop-nth. swap will swap the 0th element with the nth element.
 
-(extend-type #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector); TODO Yehonathan - is that correct for :cljs ?
+(extend-type #?(:clj clojure.lang.IPersistentVector :cljs PersistentVector)
   IVecMod
   (prepend [this x]
     (into [x] this))
