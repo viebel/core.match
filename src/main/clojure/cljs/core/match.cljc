@@ -1837,6 +1837,11 @@ col with the first column and compile the result"
   ISyntaxTag
   (syntax-tag [_] :default)))
 
+#?(:cljs
+(extend-type boolean
+  ISyntaxTag
+  (syntax-tag [_] :default)))
+
 
 
 ;; ============================================================================
